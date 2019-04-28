@@ -4,6 +4,7 @@ public class NW {
 	// Using simple linear gap score (-2 per indel)
 	// and 4 for a match, -1 for a mismatch
 	// Feel free to change this
+	
 	  public static final int gapscore = -1;
 	  public static final int matchscore = 1;
 	  public static final int mismatchscore = -1;

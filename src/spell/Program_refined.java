@@ -6,7 +6,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-public class Program {
+import info.debatty.java.stringsimilarity.NGram;
+
+
+public class Program_refined {
 	
 	private static final int testAmount = 10322;
 	
@@ -73,67 +76,95 @@ public class Program {
 		int total = testAmount;
 		
 		for (int i=0; i<testAmount;i++) {
-			for (int j=0; j<dict.length;j++) {
-				if (misspell[i].equals(dict[j])) {
-					predicted[i] = dict[j];
-					total --;
-					break;
-				}
+			if (misspell[i].equals(correct[i])) {
+				predicted[i] = correct[i];
+				total --;
 			}
-			if (predicted[i] == null) {
-				int dist = -100;
-				int ind = 0;
-				int[][] r10 = new int[10][2];
-				
-				for (int k=0;k<10;k++) {
-					r10[k][1] = -100;
+			else {
+				for (int j=0; j<dict.length;j++) {
+					if (misspell[i].equals(dict[j])) {
+						predicted[i] = dict[j];
+						total --;
+						break;
+					}
 				}
-				
-				for (int j=0;j<dict.length;j++) {
-					int lq = misspell[i].length(); 
-					int lt = dict[j].length();
-					int[][] F = new int[lq+1][lt+1];
-					for( int k=0 ; k<=lq ; k++ ) F[k][0] = -k;
-					for( int l=0 ; l<=lt ; l++ ) F[0][l] = -l;
-					for( int k=1 ; k<=lq ; k++ ) {
-						for( int l=1 ; l<=lt ; l++ ) {
-							int penalty;
-							if(misspell[i].charAt(k-1) == dict[j].charAt(l-1)) {
-								penalty = 0;
+				if (predicted[i] == null) {
+					int dist = -100;
+					int ind = 0;
+					int[][] r10 = new int[10][2];
+					
+					for (int k=0;k<10;k++) {
+						r10[k][1] = -100;
+					}
+					
+					for (int j=0;j<dict.length;j++) {
+						int lq = misspell[i].length(); 
+						int lt = dict[j].length();
+						int[][] F = new int[lq+1][lt+1];
+						for( int k=0 ; k<=lq ; k++ ) F[k][0] = -k;
+						for( int l=0 ; l<=lt ; l++ ) F[0][l] = -l;
+						for( int k=1 ; k<=lq ; k++ ) {
+							for( int l=1 ; l<=lt ; l++ ) {
+								int penalty;
+								if(misspell[i].charAt(k-1) == dict[j].charAt(l-1)) {
+									penalty = 0;
+								}
+								else {
+									penalty = -1;
+								}
+								F[k][l] = Math.max(
+									Math.max(F[k-1][l] -1, // insertion
+									F[k][l-1] -1), // deletion
+									// match/miss match
+									F[k-1][l-1] + penalty);
 							}
-							else {
-								penalty = -1;
-							}
-							F[k][l] = Math.max(
-								Math.max(F[k-1][l] -1, // insertion
-								F[k][l-1] -1), // deletion
-								// match/miss match
-								F[k-1][l-1] + penalty);
+							
+						}
+						if (F[lq][lt] > dist) {
+							dist = F[lq][lt];
+							ind = j;
 						}
 						
-					}
-					if (F[lq][lt] > dist) {
-						dist = F[lq][lt];
-						ind = j;
+						r10 = recallAtTen(r10,F[lq][lt],j);
+						
 					}
 					
-					r10 = recallAtTen(r10,F[lq][lt],j);
+					int max = -100;
 					
-				}
-				predicted[i] = dict[ind];
-
-				if(predicted[i].equals(correct[i])) {
-					counterAccuracy ++;
-				}
-				
-				for (int k=0;k<10;k++) {
-					if (dict[r10[k][0]].equals(correct[i])) {
-						counterRecall ++;
+					for (int l=0;l<10;l++) {
+						max = Math.max(max, r10[l][1]);
+					}
+					
+					double minDist = 100;
+					
+					NGram ngram = new NGram();
+					
+					System.out.println(max);
+					
+					for (int l=0;l<10;l++) {
+						if(r10[l][1] ==  max) {
+							if(minDist > ngram.distance(misspell[i],dict[r10[l][0]])) {
+								ind = r10[l][0];
+								System.out.println(dict[r10[l][0]]);
+								minDist = ngram.distance(misspell[i],dict[r10[l][0]]);
+								System.out.println(ind);
+							}
+						};
+					}
+					System.out.println("");
+					predicted[i] = dict[ind];
+	
+					if(predicted[i].equals(correct[i])) {
+						counterAccuracy ++;
+					}
+					
+					for (int k=0;k<10;k++) {
+						if (dict[r10[k][0]].equals(correct[i])) {
+							counterRecall ++;
+						}
 					}
 				}
 			}
-			
-			
 		}
 		
 		float accuracy = (float)counterAccuracy / total;
@@ -224,46 +255,52 @@ public class Program {
 		}
 		
 		for (int i=0; i<testAmount;i++) {
-			for (int j=0; j<dict.length;j++) {
-				if (misspell[i].equals(dict[j])) {
-					predicted[i] = dict[j];
-					total --;
-					break;
-				}
+			if (misspell[i].equals(correct[i])) {
+				predicted[i] = correct[i];
+				total --;
 			}
-			if (predicted[i] == null) {
-				String predictedSoundex = soundex(misspell[i]);
-				int dist = -100;
-				int ind = 0;
-				int[][] r10 = new int[10][2];
-				
-				for (int k=0;k<10;k++) {
-					r10[k][1] = -100;
-				}
-				
-				for (int j=0;j<dictSoundex.length;j++) {
-					if (predictedSoundex.equals(dictSoundex[j])) {
-						NW nw = new NW(misspell[i],dict[j]);		
-						int newDist = nw.fillScoreArray();
-						
-						if (newDist > dist) {
-							dist = newDist;
-							ind = j;
-						}
-						r10 = recallAtTen(r10,newDist,j);		
+			else {
+				for (int j=0; j<dict.length;j++) {
+					if (misspell[i].equals(dict[j])) {
+						predicted[i] = dict[j];
+						total --;
+						break;
 					}
 				}
-				predicted[i] = dict[ind];
-			
+				if (predicted[i] == null) {
+					String predictedSoundex = soundex(misspell[i]);
+					int dist = -100;
+					int ind = 0;
+					int[][] r10 = new int[10][2];
+					
+					for (int k=0;k<10;k++) {
+						r10[k][1] = -100;
+					}
+					
+					for (int j=0;j<dictSoundex.length;j++) {
+						if (predictedSoundex.equals(dictSoundex[j])) {
+							NW nw = new NW(misspell[i],dict[j]);		
+							int newDist = nw.fillScoreArray();
+							
+							if (newDist > dist) {
+								dist = newDist;
+								ind = j;
+							}
+							r10 = recallAtTen(r10,newDist,j);		
+						}
+					}
+					predicted[i] = dict[ind];
 				
-				
-				
-				if(predicted[i] != null && predicted[i].equals(correct[i])) {
-					counterAccuracy ++;
-				}
-				for (int k=0;k<10;k++) {
-					if (dict[r10[k][0]].equals(correct[i])) {
-						counterRecall ++;
+					
+					
+					
+					if(predicted[i] != null && predicted[i].equals(correct[i])) {
+						counterAccuracy ++;
+					}
+					for (int k=0;k<10;k++) {
+						if (dict[r10[k][0]].equals(correct[i])) {
+							counterRecall ++;
+						}
 					}
 				}
 			}
@@ -369,45 +406,50 @@ public class Program {
 		int total = testAmount;
 		
 		for (int i=0; i<testAmount;i++) {
-			for (int j=0; j<dict.length;j++) {
-				if (misspell[i].equals(dict[j])) {
-					predicted[i] = dict[j];
-					total --;
-					break;
-				}
+			if (misspell[i].equals(correct[i])) {
+				predicted[i] = correct[i];
+				total --;
 			}
-			if (predicted[i] == null) {
-				int dist = 100;
-				int ind = 0;
-				int[][] r10 = new int[10][2];
-				
-				for (int k=0;k<10;k++) {
-					r10[k][1] = 100;
-				}
-				
-				for (int j=0;j<dict.length;j++) {	
-					int newDist = editex(misspell[i],dict[j]);
-				
-					if (newDist < dist) {
-						dist = newDist;
-						ind = j;
-					}
-					r10 = recallAtTenEditex(r10,newDist,j);	
-				}
-				
-				predicted[i] = dict[ind];
-				
-				if(predicted[i].equals(correct[i])) {
-					counterAccuracy ++;
-				}
-				
-				for (int k=0;k<10;k++) {
-					if (dict[r10[k][0]].equals(correct[i])) {
-						counterRecall ++;
+			else {
+				for (int j=0; j<dict.length;j++) {
+					if (misspell[i].equals(dict[j])) {
+						predicted[i] = dict[j];
+						total --;
+						break;
 					}
 				}
+				if (predicted[i] == null) {
+					int dist = 100;
+					int ind = 0;
+					int[][] r10 = new int[10][2];
+					
+					for (int k=0;k<10;k++) {
+						r10[k][1] = 100;
+					}
+					
+					for (int j=0;j<dict.length;j++) {	
+						int newDist = editex(misspell[i],dict[j]);
+					
+						if (newDist < dist) {
+							dist = newDist;
+							ind = j;
+						}
+						r10 = recallAtTenEditex(r10,newDist,j);	
+					}
+					
+					predicted[i] = dict[ind];
+					
+					if(predicted[i].equals(correct[i])) {
+						counterAccuracy ++;
+					}
+					
+					for (int k=0;k<10;k++) {
+						if (dict[r10[k][0]].equals(correct[i])) {
+							counterRecall ++;
+						}
+					}
+				}
 			}
-			
 		}
 		
 		float recall = (float)counterRecall / total;
